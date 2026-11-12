@@ -1,0 +1,289 @@
+local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.Name, gui.ResetOnSpawn = "GraphicsPanelGui", false
+
+local function corner(p, r) Instance.new("UICorner", p).CornerRadius = UDim.new(0, r or 6) end
+local function new(cls, props, parent)
+	local i = Instance.new(cls, parent)
+	for k, v in pairs(props) do i[k] = v end
+	return i
+end
+
+local main = new("Frame", {Size = UDim2.new(0, 340, 0, 460), Position = UDim2.new(0.5, -170, 0.5, -230), BackgroundColor3 = Color3.fromRGB(30, 30, 38), Active = true, Draggable = true}, gui)
+corner(main, 8)
+local title = new("TextLabel", {Size = UDim2.new(1, 0, 0, 30), BackgroundColor3 = Color3.fromRGB(40, 40, 50), Text = " ⚙ Gráficos (TAB)", TextColor3 = Color3.new(1,1,1), TextSize = 13, Font = Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Left}, main)
+corner(title, 8)
+local scroll = new("ScrollingFrame", {Size = UDim2.new(1, -10, 1, -38), Position = UDim2.new(0, 5, 0, 34), BackgroundTransparency = 1, CanvasSize = UDim2.new(0, 0, 0, 1150), ScrollBarThickness = 4}, main)
+new("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 6)}, scroll)
+
+local order = 0
+local function addToggle(txt, init, cb)
+	order += 1
+	local f = new("Frame", {Size = UDim2.new(1, 0, 0, 30), BackgroundColor3 = Color3.fromRGB(40, 40, 50), LayoutOrder = order}, scroll)
+	corner(f)
+	new("TextLabel", {Size = UDim2.new(0.65, 0, 1, 0), Position = UDim2.new(0, 8, 0, 0), BackgroundTransparency = 1, Text = txt, TextColor3 = Color3.new(1,1,1), TextSize = 12, Font = Enum.Font.Gotham, TextXAlignment = Enum.TextXAlignment.Left}, f)
+	local b = new("TextButton", {Size = UDim2.new(0, 50, 0, 20), Position = UDim2.new(1, -58, 0.5, -10), BackgroundColor3 = init and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(189, 195, 199), Text = init and "ON" or "OFF", TextColor3 = Color3.new(1,1,1), TextSize = 11, Font = Enum.Font.GothamBold}, f)
+	corner(b, 4)
+	local st = init
+	b.MouseButton1Click:Connect(function()
+		st = not st
+		b.Text, b.BackgroundColor3 = st and "ON" or "OFF", st and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(189, 195, 199)
+		cb(st)
+	end)
+end
+
+local function addSlider(txt, min, max, def, cb)
+	order += 1
+	local f = new("Frame", {Size = UDim2.new(1, 0, 0, 42), BackgroundColor3 = Color3.fromRGB(40, 40, 50), LayoutOrder = order}, scroll)
+	corner(f)
+	new("TextLabel", {Size = UDim2.new(0.55, 0, 0, 18), Position = UDim2.new(0, 8, 0, 3), BackgroundTransparency = 1, Text = txt, TextColor3 = Color3.new(1,1,1), TextSize = 11, Font = Enum.Font.Gotham, TextXAlignment = Enum.TextXAlignment.Left}, f)
+	
+	local rstBtn = new("TextButton", {Size = UDim2.new(0, 22, 0, 18), Position = UDim2.new(1, -125, 0, 3), BackgroundColor3 = Color3.fromRGB(60, 60, 75), Text = "↩️", TextSize = 10}, f)
+	corner(rstBtn, 4)
+
+	local box = new("TextBox", {Size = UDim2.new(0, 55, 0, 18), Position = UDim2.new(1, -63, 0, 3), BackgroundColor3 = Color3.fromRGB(55, 55, 68), Text = tostring(def), TextColor3 = Color3.new(1,1,1), TextSize = 11, Font = Enum.Font.GothamBold}, f)
+	corner(box, 4)
+	local bg = new("Frame", {Size = UDim2.new(1, -16, 0, 5), Position = UDim2.new(0, 8, 0, 28), BackgroundColor3 = Color3.fromRGB(60, 60, 75), BorderSizePixel = 0}, f)
+	corner(bg, 4)
+	local fill = new("Frame", {Size = UDim2.new(math.clamp((def - min) / (max - min), 0, 1), 0, 1, 0), BackgroundColor3 = Color3.fromRGB(52, 152, 219), BorderSizePixel = 0}, bg)
+	corner(fill, 4)
+
+	local function set(v)
+		v = math.floor(math.clamp(v, min, max) * 100 + 0.5) / 100
+		box.Text = tostring(v)
+		fill.Size = UDim2.new((v - min) / (max - min), 0, 1, 0)
+		cb(v)
+	end
+	
+	rstBtn.MouseButton1Click:Connect(function() set(def) end)
+	box.FocusLost:Connect(function() local n = tonumber(box.Text) if n then set(n) else box.Text = tostring(def) end end)
+	local drag = false
+	bg.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then drag = true end end)
+	UIS.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then drag = false end end)
+	UIS.InputChanged:Connect(function(i)
+		if drag and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+			set(min + (max - min) * math.clamp((i.Position.X - bg.AbsolutePosition.X) / bg.AbsoluteSize.X, 0, 1))
+		end
+	end)
+end
+
+-- Efeitos Globais
+local blur = Lighting:FindFirstChild("GBlur") or new("BlurEffect", {Name = "GBlur", Enabled = false}, Lighting)
+local bloom = Lighting:FindFirstChild("GBloom") or new("BloomEffect", {Name = "GBloom", Enabled = false}, Lighting)
+local sun = Lighting:FindFirstChild("GSun") or new("SunRaysEffect", {Name = "GSun", Enabled = false, Intensity = 0.25, Spread = 0.8}, Lighting)
+
+addToggle("Sombras", Lighting.GlobalShadows, function(s) Lighting.GlobalShadows = s end)
+addSlider("Brilho", 0, 10, math.clamp(Lighting.Brightness, 0, 10), function(v) Lighting.Brightness = v end)
+addSlider("Hora", 0, 24, Lighting.ClockTime, function(v) Lighting.ClockTime = v end)
+addSlider("Latitude", -90, 90, Lighting.GeographicLatitude, function(v) Lighting.GeographicLatitude = v end)
+
+-- Fog
+local fogOn, fogVal = true, 0
+local fogCol = Lighting.FogColor
+
+local function updateFog()
+	if not fogOn or fogVal <= 0 then
+		Lighting.FogEnd = 100000
+		Lighting.FogStart = 0
+	else
+		local p = fogVal / 100
+		Lighting.FogEnd = math.clamp((1 - (p^1.5)) * 4000 + 30, 30, 5000)
+		Lighting.FogStart = math.clamp(Lighting.FogEnd * 0.05, 0, Lighting.FogEnd - 5)
+	end
+	Lighting.FogColor = fogCol
+end
+updateFog()
+
+addToggle("Névoa (Fog)", true, function(s) fogOn = s updateFog() end)
+addSlider("Intensidade Névoa", 0, 100, fogVal, function(v) fogVal = v updateFog() end)
+
+-- Seletor de Cores
+local cp = new("Frame", {Size = UDim2.new(0, 230, 0, 150), Position = UDim2.new(0.5, -115, 0.5, -75), BackgroundColor3 = Color3.fromRGB(25, 25, 30), Visible = false, Active = true, Draggable = true, ZIndex = 10}, gui)
+corner(cp, 8)
+local cpTitle = new("TextLabel", {Size = UDim2.new(1, 0, 0, 25), BackgroundColor3 = Color3.fromRGB(35, 35, 45), Text = " Cor", TextColor3 = Color3.new(1,1,1), TextSize = 11, Font = Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 11}, cp)
+corner(cpTitle, 8)
+local cpClose = new("TextButton", {Size = UDim2.new(0, 20, 0, 20), Position = UDim2.new(1, -23, 0, 2), BackgroundColor3 = Color3.fromRGB(231, 76, 60), Text = "X", TextColor3 = Color3.new(1,1,1), TextSize = 10, ZIndex = 12}, cpTitle)
+corner(cpClose, 4)
+cpClose.MouseButton1Click:Connect(function() cp.Visible = false end)
+
+local spec = new("TextButton", {Size = UDim2.new(0, 125, 0, 75), Position = UDim2.new(0, 10, 0, 32), Text = "", BackgroundColor3 = Color3.new(1,1,1), ZIndex = 11}, cp)
+new("UIGradient", {Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(255,0,0)), ColorSequenceKeypoint.new(0.2, Color3.fromRGB(255,255,0)),
+	ColorSequenceKeypoint.new(0.4, Color3.fromRGB(0,255,0)), ColorSequenceKeypoint.new(0.6, Color3.fromRGB(0,255,255)),
+	ColorSequenceKeypoint.new(0.8, Color3.fromRGB(0,0,255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(255,0,255))
+})}, spec)
+local prev = new("Frame", {Size = UDim2.new(0, 70, 0, 75), Position = UDim2.new(0, 148, 0, 32), BackgroundColor3 = Color3.new(1,1,1), ZIndex = 11}, cp)
+corner(prev)
+
+local picked = Color3.new(1,1,1)
+spec.MouseButton1Down:Connect(function()
+	local m, c = player:GetMouse(), nil
+	c = RunService.RenderStepped:Connect(function()
+		if not UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then c:Disconnect() return end
+		local rx = math.clamp((m.X - spec.AbsolutePosition.X) / spec.AbsoluteSize.X, 0, 1)
+		local ry = math.clamp((m.Y - spec.AbsolutePosition.Y) / spec.AbsoluteSize.Y, 0, 1)
+		picked = Color3.fromHSV(rx, 1 - ry, 1)
+		prev.BackgroundColor3 = picked
+	end)
+end)
+
+local currentPickerCallback, currentPickerReset = nil, nil
+local btnOk = new("TextButton", {Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(0, 10, 0, 116), BackgroundColor3 = Color3.fromRGB(46, 204, 113), Text = "Confirmar", TextColor3 = Color3.new(1,1,1), TextSize = 11, ZIndex = 11}, cp)
+local btnRst = new("TextButton", {Size = UDim2.new(0, 100, 0, 24), Position = UDim2.new(0, 118, 0, 116), BackgroundColor3 = Color3.fromRGB(230, 126, 34), Text = "Resetar", TextColor3 = Color3.new(1,1,1), TextSize = 11, ZIndex = 11}, cp)
+corner(btnOk, 4); corner(btnRst, 4)
+btnOk.MouseButton1Click:Connect(function() if currentPickerCallback then currentPickerCallback(picked) end cp.Visible = false end)
+btnRst.MouseButton1Click:Connect(function() if currentPickerReset then currentPickerReset() end cp.Visible = false end)
+
+order += 1
+local fogColBtn = new("TextButton", {Size = UDim2.new(1, 0, 0, 30), BackgroundColor3 = Color3.fromRGB(52, 152, 219), Text = "Cor da Névoa", TextColor3 = Color3.new(1,1,1), TextSize = 12, Font = Enum.Font.GothamBold, LayoutOrder = order}, scroll)
+corner(fogColBtn)
+fogColBtn.MouseButton1Click:Connect(function()
+	cpTitle.Text = " Cor da Névoa"
+	picked, prev.BackgroundColor3 = fogCol, fogCol
+	currentPickerCallback = function(c) fogCol = c updateFog() end
+	currentPickerReset = function() fogCol = Color3.fromRGB(192,192,192) updateFog() end
+	cp.Visible = true
+end)
+
+-- Água e Vidros Refletivos
+local reflectiveEnabled = true
+addToggle("Água e Vidros Refletivos", true, function(s)
+	reflectiveEnabled = s
+	workspace.Terrain.WaterWaveSize = s and 0.15 or 0
+	workspace.Terrain.WaterTransparency = s and 0.3 or 0.85
+	workspace.Terrain.WaterReflectance = s and 1 or 0
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("BasePart") then
+			local mat = obj.Material
+			local name = obj.Name:lower()
+			if mat == Enum.Material.Glass or name:find("glass") or name:find("vidro") then
+				obj.Reflectance = s and 0.8 or 0
+				obj.Transparency = s and 0.3 or 0.5
+			end
+		end
+	end
+end)
+
+-- Outline (Em TODAS as Pessoas do Mapa)
+local outlineEnabled = false
+local outlineColor = Color3.fromRGB(0, 0, 0)
+local outlineThickness = 0
+
+local function applyHighlight(target)
+	if not target then return end
+	local h = target:FindFirstChild("GGlobalPlayerHighlight")
+	if outlineEnabled then
+		if not h then
+			h = Instance.new("Highlight", target)
+			h.Name = "GGlobalPlayerHighlight"
+			h.FillTransparency = 1
+		end
+		h.OutlineColor = outlineColor
+		h.OutlineTransparency = outlineThickness
+		h.Enabled = true
+	else
+		if h then h:Destroy() end
+	end
+end
+
+local function watchCharacter(char)
+	if outlineEnabled then
+		applyHighlight(char)
+	end
+end
+
+local function watchPlayer(p)
+	p.CharacterAdded:Connect(watchCharacter)
+	if p.Character then
+		watchCharacter(p.Character)
+	end
+end
+
+Players.PlayerAdded:Connect(watchPlayer)
+for _, p in ipairs(Players:GetPlayers()) do
+	watchPlayer(p)
+end
+
+addToggle("Outline Perfeito", false, function(s)
+	outlineEnabled = s
+	if not s then
+		for _, p in ipairs(Players:GetPlayers()) do
+			if p.Character then
+				local h = p.Character:FindFirstChild("GGlobalPlayerHighlight")
+				if h then h:Destroy() end
+			end
+		end
+	else
+		for _, p in ipairs(Players:GetPlayers()) do
+			if p.Character then
+				applyHighlight(p.Character)
+			end
+		end
+	end
+end)
+
+addSlider("Espessura Outline (Grosso/Fino)", 0, 0.8, 0, function(v)
+	outlineThickness = v
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p.Character then
+			local h = p.Character:FindFirstChild("GGlobalPlayerHighlight")
+			if h then
+				h.OutlineTransparency = outlineThickness
+			end
+		end
+	end
+end)
+
+order += 1
+local outlineColBtn = new("TextButton", {Size = UDim2.new(1, 0, 0, 30), BackgroundColor3 = Color3.fromRGB(155, 89, 182), Text = "Cor do Outline", TextColor3 = Color3.new(1,1,1), TextSize = 12, Font = Enum.Font.GothamBold, LayoutOrder = order}, scroll)
+corner(outlineColBtn)
+outlineColBtn.MouseButton1Click:Connect(function()
+	cpTitle.Text = " Cor do Outline"
+	picked, prev.BackgroundColor3 = outlineColor, outlineColor
+	currentPickerCallback = function(c) 
+		outlineColor = c 
+		for _, p in ipairs(Players:GetPlayers()) do
+			if p.Character then
+				local h = p.Character:FindFirstChild("GGlobalPlayerHighlight")
+				if h then h.OutlineColor = outlineColor end
+			end
+		end
+	end
+	currentPickerReset = function() 
+		outlineColor = Color3.fromRGB(0,0,0) 
+		for _, p in ipairs(Players:GetPlayers()) do
+			if p.Character then
+				local h = p.Character:FindFirstChild("GGlobalPlayerHighlight")
+				if h then h.OutlineColor = outlineColor end
+			end
+		end
+	end
+	cp.Visible = true
+end)
+
+-- Efeitos Extras
+addToggle("Blur", false, function(s) blur.Enabled = s end)
+addSlider("Blur Size", 0, 50, 8, function(v) blur.Size = v end)
+addToggle("Bloom", false, function(s) bloom.Enabled = s end)
+addSlider("Bloom Intensity", 0, 5, 0.4, function(v) bloom.Intensity = v end)
+addToggle("SunRays", false, function(s) sun.Enabled = s end)
+addSlider("Intensidade SunRays", 0, 1, sun.Intensity, function(v) sun.Intensity = v end)
+
+local motionBlur = false
+addToggle("Motion Blur", false, function(s) motionBlur = s blur.Enabled = s end)
+local lastRot = workspace.CurrentCamera.CFrame
+RunService.RenderStepped:Connect(function()
+	if motionBlur then
+		local cam = workspace.CurrentCamera
+		local x, y = ((cam.CFrame - cam.CFrame.Position):Inverse() * (lastRot - lastRot.Position)):ToEulerAnglesXYZ()
+		blur.Size = math.clamp((math.abs(x) + math.abs(y)) * 150, 0, 30)
+		lastRot = cam.CFrame
+	end
+end)
+
+UIS.InputBegan:Connect(function(i, gp) if not gp and i.KeyCode == Enum.KeyCode.Tab then main.Visible = not main.Visible end end)
